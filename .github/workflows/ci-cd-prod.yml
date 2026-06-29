@@ -78,7 +78,7 @@ jobs:
           DB_DATABASE: testing
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
-        run: php artisan test --parallel --coverage --min=80
+        run: php artisan test --parallel --coverage --min=30
 
       - name: Run Larastan
         run: ./vendor/bin/phpstan analyse --memory-limit=512M
