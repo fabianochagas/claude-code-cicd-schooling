@@ -120,48 +120,47 @@ jobs:
   deploy:
     name: Deploy to Pre-Production
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, preprod]
     timeout-minutes: 15
     environment: preprod
     permissions:
       packages: read
 
     steps:
-      - name: Deploy (migrate + swap) via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.PREPROD_SSH_HOST }}
-          username: ${{ secrets.PREPROD_SSH_USER }}
-          key: ${{ secrets.PREPROD_SSH_KEY }}
-          script: |
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }}
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Migrate before swap — server has direct DB network access
-            docker run --rm \
-              --network host \
-              -e APP_ENV=staging \
-              -e DB_CONNECTION=pgsql \
-              -e APP_KEY=${{ secrets.PREPROD_APP_KEY }} \
-              -e DB_HOST=${{ secrets.PREPROD_DB_HOST }} \
-              -e DB_DATABASE=${{ secrets.PREPROD_DB_NAME }} \
-              -e DB_USERNAME=${{ secrets.PREPROD_DB_USER }} \
-              -e DB_PASSWORD=${{ secrets.PREPROD_DB_PASSWORD }} \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }} \
-              php artisan migrate --force
+      - name: Pull image
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }}
 
-            docker stop app-preprod || true
-            docker rm app-preprod || true
-            docker run -d \
-              --name app-preprod \
-              --restart unless-stopped \
-              -p 80:80 \
-              -e APP_ENV=staging \
-              -e DB_CONNECTION=pgsql \
-              -e APP_KEY=${{ secrets.PREPROD_APP_KEY }} \
-              -e DB_HOST=${{ secrets.PREPROD_DB_HOST }} \
-              -e DB_DATABASE=${{ secrets.PREPROD_DB_NAME }} \
-              -e DB_USERNAME=${{ secrets.PREPROD_DB_USER }} \
-              -e DB_PASSWORD=${{ secrets.PREPROD_DB_PASSWORD }} \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }}
-            docker image prune -f
+      - name: Run migrations
+        run: |
+          docker run --rm \
+            --network host \
+            -e APP_ENV=staging \
+            -e DB_CONNECTION=pgsql \
+            -e APP_KEY=${{ secrets.PREPROD_APP_KEY }} \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_DATABASE=${{ secrets.PREPROD_DB_NAME }} \
+            -e DB_USERNAME=${{ secrets.PREPROD_DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.PREPROD_DB_PASSWORD }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }} \
+            php artisan migrate --force
+
+      - name: Swap container
+        run: |
+          docker stop app-preprod || true
+          docker rm app-preprod || true
+          docker run -d \
+            --name app-preprod \
+            --restart unless-stopped \
+            --network host \
+            -e APP_ENV=staging \
+            -e DB_CONNECTION=pgsql \
+            -e APP_KEY=${{ secrets.PREPROD_APP_KEY }} \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_DATABASE=${{ secrets.PREPROD_DB_NAME }} \
+            -e DB_USERNAME=${{ secrets.PREPROD_DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.PREPROD_DB_PASSWORD }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preprod-${{ github.sha }}
+          docker image prune -f
