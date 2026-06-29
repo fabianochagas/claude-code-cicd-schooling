@@ -13,6 +13,7 @@ jobs:
   test:
     name: Tests & Static Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -82,6 +83,7 @@ jobs:
     name: Build & Push Image
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -115,9 +117,18 @@ jobs:
     name: Deploy to Development
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: development
+    permissions:
+      packages: read
 
     steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Run migrations
         run: |
           docker run --rm \
