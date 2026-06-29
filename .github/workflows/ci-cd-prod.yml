@@ -9,6 +9,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   # ─── Job 1: Tests & Static Analysis ────────────────────────────────────────
   test:

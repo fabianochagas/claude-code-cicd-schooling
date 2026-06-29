@@ -8,6 +8,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
 jobs:
   # ─── Job 1: Tests & Static Analysis ────────────────────────────────────────
   test:
@@ -133,6 +137,7 @@ jobs:
         run: |
           docker run --rm \
             -e APP_ENV=development \
+            -e DB_CONNECTION=pgsql \
             -e APP_KEY=${{ secrets.DEV_APP_KEY }} \
             -e DB_HOST=${{ secrets.DEV_DB_HOST }} \
             -e DB_PORT=5432 \
@@ -157,6 +162,7 @@ jobs:
               --restart unless-stopped \
               -p 80:80 \
               -e APP_ENV=development \
+              -e DB_CONNECTION=pgsql \
               -e APP_KEY=${{ secrets.DEV_APP_KEY }} \
               -e DB_HOST=${{ secrets.DEV_DB_HOST }} \
               -e DB_DATABASE=${{ secrets.DEV_DB_NAME }} \
