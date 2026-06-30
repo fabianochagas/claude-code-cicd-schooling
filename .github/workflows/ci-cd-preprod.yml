@@ -154,11 +154,12 @@ jobs:
           docker run -d \
             --name app-preprod \
             --restart unless-stopped \
-            --network host \
+            --network local-stack1 \
+            --add-host=host.docker.internal:host-gateway \
             -e APP_ENV=staging \
             -e DB_CONNECTION=pgsql \
             -e APP_KEY=${{ secrets.PREPROD_APP_KEY }} \
-            -e DB_HOST=127.0.0.1 \
+            -e DB_HOST=host.docker.internal \
             -e DB_DATABASE=${{ secrets.PREPROD_DB_NAME }} \
             -e DB_USERNAME=${{ secrets.PREPROD_DB_USER }} \
             -e DB_PASSWORD=${{ secrets.PREPROD_DB_PASSWORD }} \
